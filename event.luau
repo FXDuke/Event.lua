@@ -8,13 +8,14 @@ type Connection = {
 
 -- Define event type
 type Event = {
-	Fire: (any?) -> nil,	
+	Fire: (...any?) -> nil,	
 	ClearConnections: () -> nil,
 	Destroy: () -> nil,
-	Once: (callback: (any?) -> nil, any?) -> Connection,
-	Connect: (callback: (any?) -> nil, any?) -> Connection,
-	OnceParallel: (callback: (any?) -> nil, any?) -> Connection,
-	ConnectParallel: (callback: (any?) -> nil, any?) -> Connection,
+	Once: (callback: (...any?) -> nil, ...any?) -> Connection,
+	Connect: (callback: (...any?) -> nil, ...any?) -> Connection,
+	OnceParallel: (callback: (...any?) -> nil, ...any?) -> Connection,
+	ConnectParallel: (callback: (...any?) -> nil, ...any?) -> Connection,
+	BindFire: () -> (...any?)
 };
 
 -- DATA
@@ -25,7 +26,7 @@ local namedEvents = {}; -- stores ids of named events (so they can be retrieved 
 -- CONNECTION
 local connection;
 connection = {
-	new = function(attachedEventId: number, callback: (any?) -> nil, parallel: boolean, id: number, once: boolean, ...): Connection
+	new = function(attachedEventId: number, callback: (...any?) -> nil, parallel: boolean, id: number, once: boolean, ...): Connection
 		
 		-- Connection constructor
 		
@@ -41,16 +42,7 @@ connection = {
 			callback = callback,
 		}, connection);
 		
-		-- Prevent errors by making values read only via proxy table
-		local proxy = setmetatable({}, {
-			__index = newConnection,
-			__newindex = function(self, key, _)
-				rawset(self,key,nil);
-				error("Connection values are read only");
-			end,
-		});
-		
-		return proxy;
+		return newConnection;
 		
 	end,	
 };
@@ -96,7 +88,8 @@ end
 -- EVENT
 local event;
 event = {
-	getEvent = function(identifier) -- retrieve event based on name or id
+	getEvent = function(identifier, waitTime: number) -- retrieve event based on name or id
+		repeat task.wait() until (events[namedEvents[identifier]] or events[identifier]);
 		return events[namedEvents[identifier]] or events[identifier];
 	end,
 	new = function(name: string): Event -- Event Construction
@@ -113,16 +106,7 @@ event = {
 			connected = {},
 		}, event);
 		
-		-- Prevent errors by making values read only via proxy table
-		local proxy = setmetatable({}, {
-			__index = newEvent,
-			__newindex = function(self, key, _)
-				rawset(self,key,nil);
-				error("Event values are read only");
-			end,
-		});
-		
-		events[eventId] = proxy;
+		events[eventId] = newEvent;
 		
 		if (name) then 
 			
@@ -138,6 +122,10 @@ event = {
 	end,	
 };
 event.__index = event;
+
+function event:__call(...) -- When you call the event directly, it fires the event
+	self:Fire(...);
+end
 
 function event:ClearConnections() -- Clear all connections and free memory
 	
@@ -164,22 +152,22 @@ function event:Destroy() -- Clear memory of connections and event
 	
 end
 
-function event:Connect(callback: (any?) -> nil, ...): Connection -- Connect a function and store desired parameters 
+function event:Connect(callback: (...any?) -> nil, ...): Connection -- Connect a function and store desired parameters 
 	assert(callback, "Callback cannot be nil; (Event: " .. (self.name or self.id));
 	return createConnection(self, callback, false, false, ...);
 end
 
-function event:Once(callback: (any?) -> nil, ...): Connection -- Connect a function and store desired parameters that after being signaled clears its memory. 
+function event:Once(callback: (...any?) -> nil, ...): Connection -- Connect a function and store desired parameters that after being signaled clears its memory. 
 	assert(callback, "Callback cannot be nil; (Event: " .. (self.name or self.id));
 	return createConnection(self, callback, false, true, ...);
 end
 
-function event:ConnectParallel(callback: (any?) -> nil, ...): Connection -- Connect an asynchronous function and store desired parameters 
+function event:ConnectParallel(callback: (...any?) -> nil, ...): Connection -- Connect an asynchronous function and store desired parameters 
 	assert(callback, "Callback cannot be nil; (Event: " .. (self.name or self.id));
 	return createConnection(self, callback, true, false, ...);
 end
 
-function event:OnceParallel(callback: (any?) -> nil, ...): Connection -- Connect an asynchronous function and store desired parameters that after being signaled clears its memory. 
+function event:OnceParallel(callback: (...any?) -> nil, ...): Connection -- Connect an asynchronous function and store desired parameters that after being signaled clears its memory. 
 	assert(callback, "Callback cannot be nil; (Event: " .. (self.name or self.id));
 	return createConnection(self, callback, true, true, ...);
 end
@@ -193,6 +181,10 @@ function event:Fire(...) -- Signal all connected functions with passed parameter
 		connection:Signal(...);
 	end
 	
+end
+
+function event:BindFire() -- To allow for the fire function to be passed as a callback
+	return function(...) self:Fire(...) end;
 end
 
 return event;
