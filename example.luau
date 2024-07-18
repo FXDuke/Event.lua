@@ -46,7 +46,7 @@ local timeScaleFadeQueue = 0;
 local timeScaleFadeQueueCurrent = 0;
 local timeScaleFading = false;
 
-local function time_scaleChangedCallback(fadeTime, value)
+local function time_scaleChangedCallback(value, fadeTime)
 
   if (timeScaleFading) then 
     timeScaleFadeQueue += 1;
