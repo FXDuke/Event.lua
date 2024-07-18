@@ -31,7 +31,6 @@ connection = {
 		-- Connection constructor
 		
 		local parameters = ... ~= nil and {...};
-		print(parameters)
 		
 		local newConnection = setmetatable({
 			attachedEventId = attachedEventId,
