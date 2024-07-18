@@ -30,7 +30,8 @@ connection = {
 		
 		-- Connection constructor
 		
-		local parameters = {...};
+		local parameters = ... ~= nil and {...};
+		print(parameters)
 		
 		local newConnection = setmetatable({
 			attachedEventId = attachedEventId,
@@ -50,11 +51,13 @@ connection.__index = connection;
 
 function connection:Signal(...) -- Fire the connected function with stored values as well as the ones passed when signal was fired
 	
+	local parametersToPass = (self.passedParameters) and {table.unpack(self.passedParameters), ...} or {...};
+	
 	-- Thread function if asynchronous 
 	if (self.parallel) then 
-		task.spawn(self.callback, table.unpack(self.passedParameters), ...);
+		task.spawn(self.callback, table.unpack(parametersToPass));
 	else
-		self.callback(table.unpack(self.passedParameters), ...);
+		self.callback(table.unpack(parametersToPass));
 	end
 	
 	if (self.once) then
